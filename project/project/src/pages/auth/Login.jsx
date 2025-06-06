@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { toast } from 'react-hot-toast';
+import { ToastContainer, toast } from 'react-hot-toast';
 
 export default function Login() {
   const [email, setEmail] = useState('admin@example.com');
@@ -134,6 +134,7 @@ export default function Login() {
           </div>
         </div>
       </div>
+      <ToastContainer position="top-center" />
     </div>
   );
 }

@@ -50,6 +50,13 @@ export const authApi = {
 
 // Products API
 export const productsApi = {
+  getAll: (params = {}) => api.get('/products', { params }),
+  getById: (id) => api.get(`/products/${id}`),
+  create: (data) => api.post('/products', data),
+  update: (id, data) => api.put(`/products/${id}`, data),
+  delete: (id) => api.delete(`/products/${id}`),
+  getCategories: () => api.get('/products/categories'),
+  updateStock: (id, stock) => api.patch(`/products/${id}/stock`, { stock }),
   getAll: (params = {}) => api.get('/admin/products', { params }),
   getById: (id) => api.get(`/admin/products/${id}`),
   create: (data) => api.post('/admin/products', data),
@@ -59,6 +66,11 @@ export const productsApi = {
 
 // Orders API
 export const ordersApi = {
+  getAll: (params = {}) => api.get('/orders', { params }),
+  getById: (id) => api.get(`/orders/${id}`),
+  updateStatus: (id, status) => api.patch(`/orders/${id}/status`, { status }),
+  getStatuses: () => api.get('/orders/statuses'),
+  getStats: (params = {}) => api.get('/orders/stats', { params }),
   getAll: (params = {}) => api.get('/admin/orders', { params }),
   getById: (id) => api.get(`/admin/orders/${id}`),
   updateStatus: (id, status) => api.patch(`/admin/orders/${id}/status`, { status }),
@@ -66,11 +78,62 @@ export const ordersApi = {
 
 // Users API
 export const usersApi = {
+  // Get all users with optional filters
   getAll: (params = {}) => api.get('/admin/users', { params }),
+  
+  // Get a single user by ID
   getById: (id) => api.get(`/admin/users/${id}`),
-  create: (data) => api.post('/admin/users', data),
-  update: (id, data) => api.put(`/admin/users/${id}`, data),
+  
+  // Create a new user
+  create: (userData) => api.post('/admin/users', userData),
+  
+  // Update an existing user
+  update: (id, userData) => api.put(`/admin/users/${id}`, userData),
+  
+  // Delete a user
   delete: (id) => api.delete(`/admin/users/${id}`),
+  
+  // Get user statistics (count by role, status, etc.)
+  getStats: () => api.get('/admin/users/stats'),
+  
+  // Get available user roles
+  getRoles: () => api.get('/admin/users/roles'),
+  
+  // Update user status (active, inactive, suspended, etc.)
+  updateStatus: (id, status) => api.patch(`/admin/users/${id}/status`, { status }),
+  
+  // Update user role
+  updateRole: (id, role) => api.patch(`/admin/users/${id}/role`, { role }),
+  
+  // Send password reset email
+  sendPasswordReset: (email) => api.post('/admin/users/forgot-password', { email }),
+  
+  // Reset password with token
+  resetPassword: (token, newPassword) => 
+    api.post('/admin/users/reset-password', { token, newPassword }),
+  
+  // Get user activity logs
+  getActivityLogs: (userId, params = {}) => 
+    api.get(`/admin/users/${userId}/activity-logs`, { params })
+};
+
+// Settings API
+export const settingsApi = {
+  // Payment Gateways
+  getPaymentGateways: () => api.get('/admin/settings/payment-gateways'),
+  updatePaymentGateways: (data) => api.put('/admin/settings/payment-gateways', data),
+  
+  // General Settings
+  getGeneral: () => api.get('/admin/settings/general'),
+  updateGeneral: (data) => api.put('/admin/settings/general', data),
+  
+  // Email Settings
+  getEmailSettings: () => api.get('/admin/settings/email'),
+  updateEmailSettings: (data) => api.put('/admin/settings/email', data),
+  
+  // Test Payment Gateway Connection
+  testPaymentGateway: (gateway, data) => 
+    api.post(`/admin/settings/payment-gateways/${gateway}/test`, data),
 };
 
 export default api;
