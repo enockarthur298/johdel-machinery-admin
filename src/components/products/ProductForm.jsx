@@ -11,18 +11,86 @@ const ProductForm = ({ product = null }) => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   
-  const { register, handleSubmit, formState: { errors }, setValue, control } = useForm({
+  const [showCustomBrand, setShowCustomBrand] = useState(false);
+  const [showCustomPowerType, setShowCustomPowerType] = useState(false);
+  const [selectedBrand, setSelectedBrand] = useState(product?.brand || '');
+  const [selectedPowerType, setSelectedPowerType] = useState(product?.powerType || '');
+  const [customBrand, setCustomBrand] = useState('');
+  const [customPowerType, setCustomPowerType] = useState('');
+
+  const { register, handleSubmit, formState: { errors }, setValue, control, watch } = useForm({
     defaultValues: product || {
       name: '',
       description: '',
       price: '',
-      category: '',
+      brand: '',
+      customBrand: '',
+      powerType: '',
+      customPowerType: '',
       stock: '',
       sku: '',
       images: product?.images || [''],
       specifications: product?.specifications || [{ key: '', value: '' }]
     }
   });
+
+  const brands = [
+    'Makita',
+    'DeWalt',
+    'Bosch',
+    'Milwaukee',
+    'Ryobi',
+    'Stanley',
+    'Black+Decker',
+    'Knipex',
+    'Other (Specify)'
+  ];
+
+  const powerTypes = [
+    'Corded Electric',
+    'Cordless (Battery)',
+    'Pneumatic',
+    'Hydraulic',
+    'Gas/Petrol',
+    'Manual',
+    'Other (Specify)'
+  ];
+
+  const handleBrandChange = (e) => {
+    const value = e.target.value;
+    setSelectedBrand(value);
+    setShowCustomBrand(value === 'Other (Specify)');
+    if (value !== 'Other (Specify)') {
+      setValue('brand', value);
+      setValue('customBrand', '');
+    } else {
+      setValue('brand', '');
+    }
+  };
+
+  const handlePowerTypeChange = (e) => {
+    const value = e.target.value;
+    setSelectedPowerType(value);
+    setShowCustomPowerType(value === 'Other (Specify)');
+    if (value !== 'Other (Specify)') {
+      setValue('powerType', value);
+      setValue('customPowerType', '');
+    } else {
+      setValue('powerType', '');
+    }
+  };
+
+  const handleCustomBrandChange = (e) => {
+    const value = e.target.value;
+    setCustomBrand(value);
+    setValue('brand', value);
+  };
+
+  const handleCustomPowerTypeChange = (e) => {
+    const value = e.target.value;
+    setCustomPowerType(value);
+    setValue('powerType', value);
+  };
   
   const { fields, append, remove } = useFieldArray({
     control,
@@ -91,11 +159,16 @@ const ProductForm = ({ product = null }) => {
       </div>
 
       <div className="mt-8">
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg">
+        <div className="bg-white shadow overflow-hidden sm:rounded-lg divide-y divide-gray-200">
           <form onSubmit={handleSubmit(onSubmit)}>
+            {/* Basic Information Section */}
+            <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
+              <h3 className="text-lg font-medium leading-6 text-gray-900">Basic Information</h3>
+              <p className="mt-1 text-sm text-gray-500">General information about the product</p>
+            </div>
             <div className="px-4 py-5 sm:p-6">
               <div className="grid grid-cols-6 gap-6">
-                <div className="col-span-6 sm:col-span-3">
+                <div className="col-span-6 sm:col-span-4">
                   <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                     Product Name *
                   </label>
@@ -106,173 +179,146 @@ const ProductForm = ({ product = null }) => {
                     className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
                       errors.name ? 'border-red-500' : ''
                     }`}
+                    placeholder="Enter product name"
                   />
                   {errors.name && (
-                    <p className="mt-2 text-sm text-red-600">{errors.name.message}</p>
+                    <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
                   )}
                 </div>
 
                 <div className="col-span-6 sm:col-span-3">
-                  <label htmlFor="category" className="block text-sm font-medium text-gray-700">
-                    Category *
+                  <label htmlFor="brand" className="block text-sm font-medium text-gray-700">
+                    Brand *
                   </label>
                   <select
-                    id="category"
-                    {...register('category', { required: 'Category is required' })}
+                    id="brand"
+                    value={selectedBrand}
+                    onChange={handleBrandChange}
                     className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
-                      errors.category ? 'border-red-500' : ''
+                      errors.brand ? 'border-red-500' : ''
                     }`}
                   >
-                    <option value="">Select a category</option>
-                    <option value="power-tools">Power Tools</option>
-                    <option value="hand-tools">Hand Tools</option>
-                    <option value="garden-tools">Garden Tools</option>
-                    <option value="safety-equipment">Safety Equipment</option>
+                    <option value="">Select a brand</option>
+                    {brands.map((brand) => (
+                      <option key={brand} value={brand}>
+                        {brand}
+                      </option>
+                    ))}
                   </select>
-                  {errors.category && (
-                    <p className="mt-2 text-sm text-red-600">{errors.category.message}</p>
+                  {showCustomBrand && (
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        id="customBrand"
+                        value={customBrand}
+                        onChange={handleCustomBrandChange}
+                        placeholder="Enter brand name"
+                        className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                          errors.brand ? 'border-red-500' : ''
+                        }`}
+                      />
+                    </div>
+                  )}
+                  {errors.brand && (
+                    <p className="mt-2 text-sm text-red-600">{errors.brand.message}</p>
                   )}
                 </div>
 
-                <div className="col-span-6">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Product Images
+                <div className="col-span-6 sm:col-span-3">
+                  <label htmlFor="powerType" className="block text-sm font-medium text-gray-700">
+                    Power Type *
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    {imagePreviews.map((preview, index) => (
-                      <div key={index} className="relative group">
-                        <div className={`h-40 rounded-md border-2 border-dashed ${
-                          errors.images?.[index] ? 'border-red-500' : 'border-gray-300'
-                        } relative`}>
-                          {preview ? (
-                            <>
-                              <img
-                                src={preview}
-                                alt={`Preview ${index + 1}`}
-                                className="h-full w-full object-cover rounded-md"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removeImageField(index)}
-                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 focus:outline-none"
-                              >
-                                <XMarkIcon className="h-4 w-4" />
-                              </button>
-                            </>
-                          ) : (
-                            <label className="h-full w-full flex flex-col items-center justify-center cursor-pointer">
-                              <PhotoIcon className="h-12 w-12 text-gray-400" />
-                              <span className="mt-2 text-sm text-gray-600">
-                                Click to upload
-                              </span>
-                              <input
-                                type="file"
-                                className="hidden"
-                                accept="image/*"
-                                onChange={(e) => handleImageChange(e, index)}
-                              />
-                            </label>
-                          )}
-                        </div>
-                        <input
-                          type="hidden"
-                          {...register(`images.${index}`, {
-                            required: index === 0 ? 'At least one image is required' : false
-                          })}
-                        />
-                        {errors.images?.[index] && (
-                          <p className="mt-1 text-xs text-red-600">
-                            {errors.images[index].message}
-                          </p>
-                        )}
-                      </div>
+                  <select
+                    id="powerType"
+                    value={selectedPowerType}
+                    onChange={handlePowerTypeChange}
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                      errors.powerType ? 'border-red-500' : ''
+                    }`}
+                  >
+                    <option value="">Select power type</option>
+                    {powerTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
                     ))}
-                    {imagePreviews.length < 5 && (
-                      <div className="h-40 flex items-center justify-center">
-                        <button
-                          type="button"
-                          onClick={addImageField}
-                          className="h-full w-full rounded-md border-2 border-dashed border-gray-300 flex flex-col items-center justify-center hover:border-gray-400 focus:outline-none"
-                        >
-                          <svg
-                            className="h-12 w-12 text-gray-400"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                            />
-                          </svg>
-                          <span className="mt-2 text-sm text-gray-600">
-                            Add another image
-                          </span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                  {errors.images && typeof errors.images.message === 'string' && (
-                    <p className="mt-2 text-sm text-red-600">
-                      {errors.images.message}
-                    </p>
+                  </select>
+                  {showCustomPowerType && (
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        id="customPowerType"
+                        value={customPowerType}
+                        onChange={handleCustomPowerTypeChange}
+                        placeholder="Enter power type"
+                        className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                          errors.powerType ? 'border-red-500' : ''
+                        }`}
+                      />
+                    </div>
+                  )}
+                  {errors.powerType && (
+                    <p className="mt-2 text-sm text-red-600">{errors.powerType.message}</p>
                   )}
                 </div>
 
-                {/* Specifications Section */}
                 <div className="col-span-6">
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="block text-sm font-medium text-gray-700">
-                      Specifications
-                    </label>
-                    <button
-                      type="button"
-                      onClick={() => append({ key: '', value: '' })}
-                      className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                    >
-                      <PlusIcon className="h-4 w-4 mr-1" />
-                      Add Specification
-                    </button>
+                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">
+                    Description
+                  </label>
+                  <div className="mt-1">
+                    <textarea
+                      id="description"
+                      rows={3}
+                      {...register('description')}
+                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mt-1 block w-full sm:text-sm border border-gray-300 rounded-md"
+                      placeholder="Enter detailed product description..."
+                    />
                   </div>
-                  
-                  <div className="space-y-4">
-                    {fields.map((field, index) => (
-                      <div key={field.id} className="grid grid-cols-12 gap-4 items-start">
-                        <div className="col-span-5">
-                          <input
-                            type="text"
-                            {...register(`specifications.${index}.key`)}
-                            placeholder="Specification name (e.g., Weight, Dimensions)"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                          />
-                        </div>
-                        <div className="col-span-6">
-                          <input
-                            type="text"
-                            {...register(`specifications.${index}.value`)}
-                            placeholder="Specification value"
-                            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                          />
-                        </div>
-                        <div className="col-span-1">
-                          <button
-                            type="button"
-                            onClick={() => remove(index)}
-                            className="mt-1 inline-flex items-center justify-center p-1.5 rounded-md text-red-500 hover:bg-red-50 focus:outline-none"
-                          >
-                            <XMarkIcon className="h-5 w-5" />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
-                    {fields.length === 0 && (
-                      <p className="text-sm text-gray-500">
-                        No specifications added yet. Click "Add Specification" to add one.
-                      </p>
-                    )}
-                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Product Details Section */}
+            <div className="px-4 py-5 sm:px-6 border-t border-b border-gray-200 bg-gray-50">
+              <h3 className="text-lg font-medium leading-6 text-gray-900">Product Details</h3>
+              <p className="mt-1 text-sm text-gray-500">Specify product specifications and attributes</p>
+            </div>
+            <div className="px-4 py-5 sm:p-6">
+              <div className="grid grid-cols-6 gap-6">
+                <div className="col-span-6 sm:col-span-3">
+                  <label htmlFor="sku" className="block text-sm font-medium text-gray-700">
+                    SKU (Stock Keeping Unit)
+                  </label>
+                  <input
+                    type="text"
+                    id="sku"
+                    {...register('sku')}
+                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    placeholder="e.g., TOOL-12345"
+                  />
+                </div>
+
+                <div className="col-span-6 sm:col-span-3">
+                  <label htmlFor="stock" className="block text-sm font-medium text-gray-700">
+                    Stock Quantity *
+                  </label>
+                  <input
+                    type="number"
+                    id="stock"
+                    {...register('stock', { 
+                      required: 'Stock quantity is required',
+                      min: { value: 0, message: 'Stock cannot be negative' },
+                      valueAsNumber: true
+                    })}
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                      errors.stock ? 'border-red-500' : ''
+                    }`}
+                    placeholder="0"
+                  />
+                  {errors.stock && (
+                    <p className="mt-1 text-sm text-red-600">{errors.stock.message}</p>
+                  )}
                 </div>
 
                 <div className="col-span-6 sm:col-span-3">
@@ -298,76 +344,279 @@ const ProductForm = ({ product = null }) => {
                     />
                   </div>
                   {errors.price && (
-                    <p className="mt-2 text-sm text-red-600">{errors.price.message}</p>
+                    <p className="mt-1 text-sm text-red-600">{errors.price.message}</p>
                   )}
                 </div>
-
-                <div className="col-span-6 sm:col-span-3">
-                  <label htmlFor="stock" className="block text-sm font-medium text-gray-700">
-                    Stock Quantity *
-                  </label>
-                  <input
-                    type="number"
-                    id="stock"
-                    {...register('stock', { 
-                      required: 'Stock quantity is required',
-                      min: { value: 0, message: 'Stock cannot be negative' },
-                      valueAsNumber: true
-                    })}
-                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
-                      errors.stock ? 'border-red-500' : ''
-                    }`}
-                  />
-                  {errors.stock && (
-                    <p className="mt-2 text-sm text-red-600">{errors.stock.message}</p>
-                  )}
-                </div>
-
-                <div className="col-span-6">
-                  <label htmlFor="description" className="block text-sm font-medium text-gray-700">
-                    Description
-                  </label>
-                  <div className="mt-1">
-                    <textarea
-                      id="description"
-                      rows={3}
-                      {...register('description')}
-                      className="shadow-sm focus:ring-indigo-500 focus:border-indigo-500 mt-1 block w-full sm:text-sm border border-gray-300 rounded-md"
-                      placeholder="Product description..."
-                    />
-                  </div>
-                </div>
-
-                <div className="col-span-6 sm:col-span-3">
-                  <label htmlFor="sku" className="block text-sm font-medium text-gray-700">
-                    SKU (Stock Keeping Unit)
-                  </label>
-                  <input
-                    type="text"
-                    id="sku"
-                    {...register('sku')}
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-                  />
-                </div>
-
-
               </div>
             </div>
-            <div className="px-4 py-3 bg-gray-50 text-right sm:px-6">
-              <button
-                type="button"
-                onClick={() => navigate('/products')}
-                className="inline-flex justify-center rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 mr-3"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={mutation.isLoading}
-                className="inline-flex justify-center rounded-md border border-transparent bg-indigo-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:opacity-50"
-              >
-                {mutation.isLoading ? 'Saving...' : isEdit ? 'Update Product' : 'Save Product'}
-              </button>
+
+            {/* Product Identification Section */}
+            <div className="px-4 py-5 sm:px-6 border-t border-b border-gray-200 bg-gray-50">
+              <h3 className="text-lg font-medium leading-6 text-gray-900">Product Identification</h3>
+              <p className="mt-1 text-sm text-gray-500">Categorize and identify your product</p>
+            </div>
+            <div className="px-4 py-5 sm:p-6">
+              <div className="grid grid-cols-6 gap-6">
+                <div className="col-span-6 sm:col-span-3">
+                  <label htmlFor="brand" className="block text-sm font-medium text-gray-700">
+                    Brand *
+                  </label>
+                  <select
+                    id="brand"
+                    value={selectedBrand}
+                    onChange={handleBrandChange}
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                      errors.brand ? 'border-red-500' : ''
+                    }`}
+                  >
+                    <option value="">Select a brand</option>
+                    {brands.map((brand) => (
+                      <option key={brand} value={brand}>
+                        {brand}
+                      </option>
+                    ))}
+                  </select>
+                  {showCustomBrand && (
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        id="customBrand"
+                        value={customBrand}
+                        onChange={handleCustomBrandChange}
+                        placeholder="Enter brand name"
+                        className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                          errors.brand ? 'border-red-500' : ''
+                        }`}
+                      />
+                    </div>
+                  )}
+                  {errors.brand && (
+                    <p className="mt-1 text-sm text-red-600">{errors.brand.message}</p>
+                  )}
+                </div>
+
+                <div className="col-span-6 sm:col-span-3">
+                  <label htmlFor="powerType" className="block text-sm font-medium text-gray-700">
+                    Power Type *
+                  </label>
+                  <select
+                    id="powerType"
+                    value={selectedPowerType}
+                    onChange={handlePowerTypeChange}
+                    className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                      errors.powerType ? 'border-red-500' : ''
+                    }`}
+                  >
+                    <option value="">Select power type</option>
+                    {powerTypes.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                  {showCustomPowerType && (
+                    <div className="mt-2">
+                      <input
+                        type="text"
+                        id="customPowerType"
+                        value={customPowerType}
+                        onChange={handleCustomPowerTypeChange}
+                        placeholder="Enter power type"
+                        className={`mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm ${
+                          errors.powerType ? 'border-red-500' : ''
+                        }`}
+                      />
+                    </div>
+                  )}
+                  {errors.powerType && (
+                    <p className="mt-1 text-sm text-red-600">{errors.powerType.message}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Product Media Section */}
+            <div className="px-4 py-5 sm:px-6 border-t border-b border-gray-200 bg-gray-50">
+              <h3 className="text-lg font-medium leading-6 text-gray-900">Product Media</h3>
+              <p className="mt-1 text-sm text-gray-500">Upload product images (up to 5 images)</p>
+            </div>
+            <div className="px-4 py-5 sm:p-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {imagePreviews.map((preview, index) => (
+                  <div key={index} className="relative group">
+                    <div className={`h-40 rounded-md border-2 border-dashed ${
+                      errors.images?.[index] ? 'border-red-500' : 'border-gray-300'
+                    } relative`}>
+                      {preview ? (
+                        <>
+                          <img
+                            src={preview}
+                            alt={`Preview ${index + 1}`}
+                            className="h-full w-full object-cover rounded-md"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => removeImageField(index)}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 focus:outline-none"
+                          >
+                            <XMarkIcon className="h-4 w-4" />
+                          </button>
+                        </>
+                      ) : (
+                        <label className="h-full w-full flex flex-col items-center justify-center cursor-pointer">
+                          <PhotoIcon className="h-12 w-12 text-gray-400" />
+                          <span className="mt-2 text-sm text-gray-600">
+                            Click to upload
+                          </span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/*"
+                            onChange={(e) => handleImageChange(e, index)}
+                          />
+                        </label>
+                      )}
+                    </div>
+                    <input
+                      type="hidden"
+                      {...register(`images.${index}`, {
+                        required: index === 0 ? 'At least one image is required' : false
+                      })}
+                    />
+                    {errors.images?.[index] && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {errors.images[index].message}
+                      </p>
+                    )}
+                  </div>
+                ))}
+                {imagePreviews.length < 5 && (
+                  <div className="h-40 flex items-center justify-center">
+                    <button
+                      type="button"
+                      onClick={addImageField}
+                      className="h-full w-full rounded-md border-2 border-dashed border-gray-300 flex flex-col items-center justify-center hover:border-gray-400 focus:outline-none"
+                    >
+                      <svg
+                        className="h-12 w-12 text-gray-400"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                        />
+                      </svg>
+                      <span className="mt-2 text-sm text-gray-600">
+                        Add another image
+                      </span>
+                    </button>
+                  </div>
+                )}
+              </div>
+              {errors.images && typeof errors.images.message === 'string' && (
+                <p className="mt-2 text-sm text-red-600">
+                  {errors.images.message}
+                </p>
+              )}
+            </div>
+
+            {/* Product Specifications Section */}
+            <div className="px-4 py-5 sm:px-6 border-t border-b border-gray-200 bg-gray-50">
+              <h3 className="text-lg font-medium leading-6 text-gray-900">Product Specifications</h3>
+              <p className="mt-1 text-sm text-gray-500">Add detailed specifications and features</p>
+            </div>
+            <div className="px-4 py-5 sm:p-6">
+              <div className="space-y-6">
+                <div className="flex justify-between items-center">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Product Specifications
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => append({ key: '', value: '' })}
+                    className="inline-flex items-center px-3 py-1.5 border border-transparent text-xs font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  >
+                    <PlusIcon className="h-4 w-4 mr-1" />
+                    Add Specification
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  {fields.map((field, index) => (
+                    <div key={field.id} className="grid grid-cols-12 gap-4 items-start">
+                      <div className="col-span-5">
+                        <input
+                          type="text"
+                          {...register(`specifications.${index}.key`)}
+                          placeholder="Specification name (e.g., Weight, Dimensions)"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        />
+                      </div>
+                      <div className="col-span-6">
+                        <input
+                          type="text"
+                          {...register(`specifications.${index}.value`)}
+                          placeholder="Specification value"
+                          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                        />
+                      </div>
+                      <div className="col-span-1">
+                        <button
+                          type="button"
+                          onClick={() => remove(index)}
+                          className="mt-1 inline-flex items-center justify-center p-1.5 rounded-md text-red-500 hover:bg-red-50 focus:outline-none"
+                          title="Remove specification"
+                        >
+                          <XMarkIcon className="h-5 w-5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                  {fields.length === 0 && (
+                    <div className="text-center py-4 border-2 border-dashed border-gray-300 rounded-lg">
+                      <p className="text-sm text-gray-500">
+                        No specifications added yet. Click "Add Specification" to get started.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Form Actions */}
+            <div className="px-4 py-3 bg-gray-50 text-right sm:px-6 border-t border-gray-200">
+              <div className="flex justify-end space-x-3">
+                <button
+                  type="button"
+                  onClick={() => navigate('/products')}
+                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={mutation.isLoading}
+                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                >
+                  {mutation.isLoading ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Saving...
+                    </>
+                  ) : isEdit ? (
+                    'Update Product'
+                  ) : (
+                    'Save Product'
+                  )}
+                </button>
+              </div>
             </div>
           </form>
         </div>
