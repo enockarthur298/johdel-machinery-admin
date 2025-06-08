@@ -1,31 +1,37 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authApi } from '../services/api';
 
 const AuthContext = createContext(null);
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
+  // Check authentication status on mount
   useEffect(() => {
-    // Check if user is logged in
     const checkAuth = async () => {
       try {
-        // TODO: Implement actual auth check with your backend
         const token = localStorage.getItem('adminToken');
         if (token) {
-          // Verify token with backend
-          // const response = await fetch('/api/admin/verify-token', { headers: { Authorization: `Bearer ${token}` } });
-          // const userData = await response.json();
-          // setUser(userData);
-          
-          // For now, just set a mock user
-          setUser({ id: 1, name: 'Admin', email: 'admin@example.com', role: 'admin' });
+          // Try to get the user profile
+          const response = await authApi.getProfile();
+          if (response.data) {
+            setUser(response.data);
+          } else {
+            // If no user data, clear the token
+            localStorage.removeItem('adminToken');
+          }
         }
       } catch (error) {
         console.error('Auth check failed:', error);
-        localStorage.removeItem('adminToken');
+        if (error.response && error.response.status === 401) {
+          // Token is invalid or expired
+          localStorage.removeItem('adminToken');
+        }
+        setError(error.message);
       } finally {
         setLoading(false);
       }
@@ -34,49 +40,109 @@ export const AuthProvider = ({ children }) => {
     checkAuth();
   }, []);
 
+  // Handle login
   const login = async (email, password) => {
     try {
-      // TODO: Implement actual login with your backend
-      // const response = await fetch('/api/admin/login', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify({ email, password })
-      // });
-      // const data = await response.json();
+      setLoading(true);
+      setError(null);
       
-      // Mock login
-      const data = { 
-        user: { id: 1, name: 'Admin', email: 'admin@example.com', role: 'admin' },
-        token: 'mock-jwt-token'
-      };
+      const response = await authApi.login({ email, password });
       
-      localStorage.setItem('adminToken', data.token);
-      setUser(data.user);
-      navigate('/dashboard');
-      return { success: true };
+      if (response.data && response.data.access_token) {
+        // Save the tokens and user data
+        localStorage.setItem('adminToken', response.data.access_token);
+        if (response.data.refresh_token) {
+          localStorage.setItem('refreshToken', response.data.refresh_token);
+        }
+        
+        // Set the user data
+        const userData = response.data.user || {
+          id: response.data.id,
+          email: response.data.email,
+          name: response.data.name,
+          role: 'admin'
+        };
+        
+        setUser(userData);
+        
+        // Redirect to dashboard
+        navigate('/dashboard', { replace: true });
+        return { success: true };
+      } else {
+        throw new Error('Invalid response from server');
+      }
     } catch (error) {
       console.error('Login failed:', error);
-      return { success: false, message: error.message };
+      const errorMessage = error.response?.data?.error || error.message || 'Login failed';
+      setError(errorMessage);
+      return { 
+        success: false, 
+        message: errorMessage 
+      };
+    } finally {
+      setLoading(false);
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('adminToken');
-    setUser(null);
-    navigate('/login');
-  };
+  // Handle logout
+  const logout = useCallback(async () => {
+    try {
+      await authApi.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      // Clear local storage and state
+      localStorage.removeItem('adminToken');
+      setUser(null);
+      navigate('/login');
+    }
+  }, [navigate]);
+
+  // Handle token refresh
+  const refreshToken = useCallback(async () => {
+    try {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+      
+      const response = await authApi.refreshToken(refreshToken);
+      
+      if (response.data && response.data.access_token) {
+        // Update the access token
+        localStorage.setItem('adminToken', response.data.access_token);
+        
+        // Update refresh token if a new one is provided
+        if (response.data.refresh_token) {
+          localStorage.setItem('refreshToken', response.data.refresh_token);
+        }
+        
+        return response.data.access_token;
+      }
+      
+      return null;
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      // Don't logout here, let the interceptor handle it
+      return null;
+    }
+  }, []);
 
   const value = {
     user,
     loading,
+    error,
     login,
     logout,
+    refreshToken,
     isAuthenticated: !!user,
     isAdmin: user?.role === 'admin'
   };
 
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">Loading...</div>;
+    return <div className="flex items-center justify-center min-h-screen">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+    </div>;
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

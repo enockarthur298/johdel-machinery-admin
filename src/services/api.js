@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuth } from '../contexts/AuthContext';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -8,9 +9,24 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Important for cookies if using httpOnly cookies
 });
 
-// Add a request interceptor to add the auth token to requests
+let isRefreshing = false;
+let failedQueue = [];
+
+const processQueue = (error, token = null) => {
+  failedQueue.forEach(prom => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token);
+    }
+  });
+  failedQueue = [];
+};
+
+// Request interceptor to add auth token
 api.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem('adminToken');
@@ -24,20 +40,75 @@ api.interceptors.request.use(
   }
 );
 
-// Add a response interceptor to handle errors
+// Response interceptor to handle token refresh
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response) {
-      // Handle specific status codes
-      if (error.response.status === 401) {
-        // Token expired or invalid, redirect to login
-        localStorage.removeItem('adminToken');
+  async (error) => {
+    const originalRequest = error.config;
+    
+    // If error is not a 401 or if it's a retry request, reject
+    if (error.response?.status !== 401 || originalRequest._retry) {
+      return Promise.reject(error);
+    }
+
+    // Mark this request as already retried to prevent infinite loops
+    originalRequest._retry = true;
+
+    // If we're already refreshing the token, add to queue
+    if (isRefreshing) {
+      return new Promise((resolve, reject) => {
+        failedQueue.push({ resolve, reject });
+      })
+      .then(token => {
+        originalRequest.headers.Authorization = `Bearer ${token}`;
+        return api(originalRequest);
+      });
+    }
+
+    isRefreshing = true;
+
+    try {
+      const refreshToken = localStorage.getItem('refreshToken');
+      if (!refreshToken) {
+        throw new Error('No refresh token available');
+      }
+
+      // Call the refresh token endpoint using the authApi to handle token updates
+      const response = await authApi.refreshToken(refreshToken);
+      
+      if (!response.data || !response.data.access_token) {
+        throw new Error('Invalid response from refresh token endpoint');
+      }
+
+      const { access_token } = response.data;
+      
+      // Update the Authorization header for the original request
+      originalRequest.headers.Authorization = `Bearer ${access_token}`;
+
+      // Process any queued requests
+      processQueue(null, access_token);
+
+      // Retry the original request
+      return api(originalRequest);
+    } catch (refreshError) {
+      console.error('Token refresh failed:', refreshError);
+      
+      // If refresh fails, clear tokens and redirect to login
+      localStorage.removeItem('adminToken');
+      localStorage.removeItem('refreshToken');
+      
+      // Process any queued requests with error
+      processQueue(refreshError, null);
+      
+      // Redirect to login page
+      if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }
-      // You can add more specific error handling here
+      
+      return Promise.reject(refreshError);
+    } finally {
+      isRefreshing = false;
     }
-    return Promise.reject(error);
   }
 );
 
@@ -46,6 +117,19 @@ export const authApi = {
   login: (credentials) => api.post('/admin/login', credentials),
   logout: () => api.post('/admin/logout'),
   getProfile: () => api.get('/admin/profile'),
+  refreshToken: (refreshToken) => {
+    return api.post('/admin/refresh-token', { refresh_token: refreshToken })
+      .then(response => {
+        // Update the stored tokens
+        if (response.data.access_token) {
+          localStorage.setItem('adminToken', response.data.access_token);
+        }
+        if (response.data.refresh_token) {
+          localStorage.setItem('refreshToken', response.data.refresh_token);
+        }
+        return response;
+      });
+  }
 };
 
 // Products API

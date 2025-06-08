@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { productsApi } from '../../services/api';
 import { useNavigate } from 'react-router-dom';
-import { XMarkIcon, PhotoIcon, PlusIcon } from '@heroicons/react/24/outline';
+import { XMarkIcon, PhotoIcon, PlusIcon, ArrowLeftIcon } from '@heroicons/react/24/outline';
 import { useFieldArray } from 'react-hook-form';
+import { toast } from 'react-hot-toast';
 
 const ProductForm = ({ product = null }) => {
   const isEdit = !!product;
@@ -97,55 +98,115 @@ const ProductForm = ({ product = null }) => {
     name: 'specifications'
   });
 
-  const [imagePreviews, setImagePreviews] = useState(product?.images || ['']);
+  const [imagePreviews, setImagePreviews] = useState(product?.images || []);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [serverError, setServerError] = useState('');
 
-  const handleImageChange = (e, index) => {
+  // Set initial form values when product changes
+  useEffect(() => {
+    if (product) {
+      setImagePreviews(product.images || []);
+      setSelectedBrand(product.brand || '');
+      setSelectedPowerType(product.powerType || '');
+    }
+  }, [product]);
+
+  // Handle image upload (mock implementation - replace with actual file upload)
+  const handleImageUpload = async (file) => {
+    try {
+      setIsUploading(true);
+      // Simulate upload delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // In a real app, upload the file to your storage service
+      // const uploadedImage = await uploadImageToStorage(file);
+      // return uploadedImage.url;
+      
+      // For now, use a mock URL
+      return URL.createObjectURL(file);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Failed to upload image. Please try again.');
+      throw error;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Handle image file selection
+  const handleImageChange = async (e, index) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const newPreviews = [...imagePreviews];
-      newPreviews[index] = reader.result;
-      setImagePreviews(newPreviews);
-      setValue('images', newPreviews);
-    };
-    reader.readAsDataURL(file);
+    try {
+      const imageUrl = await handleImageUpload(file);
+      const newImages = [...imagePreviews];
+      newImages[index] = imageUrl;
+      setImagePreviews(newImages.filter(url => url));
+    } catch (error) {
+      console.error('Error handling image:', error);
+    }
   };
 
+  // Add a new image field
   const addImageField = () => {
     setImagePreviews([...imagePreviews, '']);
   };
 
-  const removeImageField = (index) => {
-    const newPreviews = [...imagePreviews];
-    newPreviews.splice(index, 1);
-    setImagePreviews(newPreviews);
-    setValue('images', newPreviews);
+  // Remove an image
+  const removeImage = (index) => {
+    const newImages = [...imagePreviews];
+    newImages.splice(index, 1);
   };
 
-  const mutation = useMutation({
-    mutationFn: isEdit 
-      ? (data) => productsApi.update(product.id, data)
-      : (data) => productsApi.create(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-      navigate('/products');
-    },
-  });
-
-  const onSubmit = (data) => {
-    const productData = {
-      ...data,
-      price: parseFloat(data.price),
-      stock: parseInt(data.stock, 10),
-      // Filter out empty image strings
-      images: data.images.filter(img => img !== ''),
-      // Filter out empty specifications
-      specifications: data.specifications.filter(spec => spec.key.trim() !== '' && spec.value.trim() !== '')
-    };
-    mutation.mutate(productData);
+  // Handle form submission
+  const onSubmit = async (data) => {
+    try {
+      setIsSubmitting(true);
+      setServerError('');
+      
+      // Prepare the product data
+      const productData = {
+        name: data.name,
+        description: data.description,
+        price: parseFloat(data.price),
+        brand: data.brand,
+        powerType: data.powerType,
+        stock: parseInt(data.stock, 10),
+        sku: data.sku,
+        images: imagePreviews.filter(img => img && img.trim() !== ''),
+        specifications: data.specifications
+          .filter(spec => spec.key.trim() !== '' && spec.value.trim() !== '')
+          .map(spec => ({
+            key: spec.key.trim(),
+            value: spec.value.trim()
+          }))
+      };
+      
+      // Call the appropriate API based on whether we're creating or updating
+      if (isEdit) {
+        await productsApi.update(product.id, productData);
+        toast.success('Product updated successfully!');
+      } else {
+        await productsApi.create(productData);
+        toast.success('Product created successfully!');
+      }
+      
+      // Invalidate products query to refetch the list
+      queryClient.invalidateQueries(['products']);
+      
+      // Navigate back to products list
+      navigate('/admin/products');
+      
+    } catch (error) {
+      console.error('Error submitting product:', error);
+      const errorMessage = error.response?.data?.error || 'Failed to save product. Please try again.';
+      setServerError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -589,34 +650,32 @@ const ProductForm = ({ product = null }) => {
 
             {/* Form Actions */}
             <div className="px-4 py-3 bg-gray-50 text-right sm:px-6 border-t border-gray-200">
-              <div className="flex justify-end space-x-3">
-                <button
-                  type="button"
-                  onClick={() => navigate('/products')}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={mutation.isLoading}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-                >
-                  {mutation.isLoading ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Saving...
-                    </>
-                  ) : isEdit ? (
-                    'Update Product'
-                  ) : (
-                    'Save Product'
-                  )}
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => navigate('/admin/products')}
+                className="mr-3 inline-flex justify-center py-2 px-4 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? (
+                  <>
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Saving...
+                  </>
+                ) : isEdit ? (
+                  'Update Product'
+                ) : (
+                  'Save Product'
+                )}
+              </button>
             </div>
           </form>
         </div>
